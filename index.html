@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>لینک‌ساز HTML</title>
+<script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
+<style>
+  *{box-sizing:border-box}
+  body{
+    margin:0;min-height:100vh;font-family:Vazirmatn,Tahoma,system-ui,sans-serif;
+    background:radial-gradient(1100px 550px at 50% -10%,#1a2450 0%,#0b1020 60%) fixed;
+    color:#e8ecf5;padding:26px 16px 70px;
+  }
+  .wrap{max-width:900px;margin:0 auto}
+  h1{font-size:clamp(20px,3.4vw,28px);text-align:center;margin:0 0 6px;
+     background:linear-gradient(90deg,#8fb3ff,#c0a8ff);
+     -webkit-background-clip:text;background-clip:text;color:transparent}
+  header p{color:#8b97b3;text-align:center;margin:0 0 24px;font-size:13.5px;line-height:1.9}
+  .card{
+    background:linear-gradient(180deg,#131a2e,#0f1526);
+    border:1px solid #243050;border-radius:18px;padding:20px;
+    margin-bottom:18px;box-shadow:0 18px 45px -20px #000a;
+  }
+  #drop{
+    border:2px dashed #33436e;border-radius:16px;padding:42px 20px;
+    text-align:center;cursor:pointer;transition:.22s;background:rgba(91,140,255,.04);
+  }
+  #drop:hover{border-color:#5b8cff;background:rgba(91,140,255,.09)}
+  #drop.drag{border-color:#7c5cff;background:rgba(124,92,255,.16);transform:scale(1.01)}
+  #drop .ico{font-size:44px;line-height:1;margin-bottom:12px;display:block}
+  #drop b{font-size:16px;display:block;margin-bottom:6px}
+  #drop small{color:#8b97b3;font-size:13px}
+  button{
+    font:inherit;font-size:14px;font-weight:600;cursor:pointer;
+    border-radius:11px;padding:11px 16px;border:1px solid #243050;
+    background:#1b2440;color:#e8ecf5;transition:.18s;
+    display:inline-flex;align-items:center;gap:7px;
+  }
+  button:hover:not(:disabled){background:#243056;border-color:#3d5290;transform:translateY(-1px)}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  .primary{background:linear-gradient(135deg,#5b8cff,#7c5cff);border:none;color:#fff}
+  .primary:hover:not(:disabled){filter:brightness(1.12)}
+  .ok{background:#12331f;border-color:#1f6b3d;color:#7ff0a8}
+  .ghost{background:transparent}
+  .row{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+  .linkbox{display:flex;gap:8px;margin-top:14px}
+  .linkbox input{
+    flex:1;min-width:0;font:inherit;font-size:12.5px;direction:ltr;
+    background:#0a0f1e;border:1px solid #243050;border-radius:11px;
+    color:#9fd4ff;padding:11px 13px;outline:none;
+  }
+  .linkbox input:focus{border-color:#5b8cff}
+  iframe{width:100%;height:500px;border:1px solid #243050;border-radius:14px;background:#fff;display:block}
+  .alert{padding:12px 15px;border-radius:12px;font-size:13.5px;line-height:1.9;margin-top:14px}
+  .a-err{background:#2a1114;border:1px solid #6b2430;color:#ffb3b3}
+  .a-ok{background:#0f2a1a;border:1px solid #1f6b3d;color:#9ff0bd}
+  .a-warn{background:#2a2210;border:1px solid #6b5720;color:#ffd98a}
+  .info{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;font-size:13px}
+  .chip{background:#0e162a;border:1px solid #243050;padding:7px 13px;border-radius:999px;color:#8b97b3}
+  .chip b{color:#e8ecf5;font-weight:600}
+  .hidden{display:none !important}
+  .toast{
+    position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(20px);
+    background:#1f6b3d;color:#fff;padding:11px 22px;border-radius:12px;font-size:14px;
+    opacity:0;pointer-events:none;transition:.3s;z-index:99;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .prevhead{display:flex;justify-content:space-between;align-items:center;margin:0 0 12px}
+  .prevhead h2{font-size:15px;margin:0;font-weight:600;color:#8b97b3}
+  hr{border:none;border-top:1px solid #243050;margin:18px 0}
+  .note{font-size:12.5px;color:#8b97b3;line-height:2;margin-top:14px}
+  .note code{background:#0a0f1e;padding:2px 6px;border-radius:6px;direction:ltr;display:inline-block}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ================= حالت سازنده ================= -->
+  <div id="modeCreate">
+    <header>
+      <h1>لینک‌ساز فایل HTML</h1>
+      <p>فایل HTML رو آپلود کن، یه لینک از همین سایت بگیر که بقیه هم بتونن بازش کنن</p>
+    </header>
+
+    <div class="card">
+      <div id="drop">
+        <span class="ico">📄</span>
+        <b>فایل HTML رو بکش و بذار اینجا</b>
+        <small>یا کلیک کن تا از سیستمت انتخاب کنی</small>
+      </div>
+      <input type="file" id="fileInput" accept=".html,.htm,text/html" class="hidden">
+      <div class="info hidden" id="info">
+        <span class="chip">نام: <b id="iName">—</b></span>
+        <span class="chip">حجم اصلی: <b id="iSize">—</b></span>
+        <span class="chip">حجم لینک: <b id="iLink">—</b></span>
+      </div>
+      <div id="msg"></div>
+    </div>
+
+    <div class="card hidden" id="result">
+      <div class="prevhead">
+        <h2>✅ لینک اشتراکی آماده است</h2>
+      </div>
+      <div class="row" style="margin-top:0">
+        <button class="primary" id="btnCopy">🔗 کپی لینک</button>
+        <button class="ok" id="btnOpen">🚀 باز کردن در تب جدید</button>
+        <button class="ghost" id="btnReset">↺ فایل جدید</button>
+      </div>
+      <div class="linkbox">
+        <input type="text" id="linkOut" readonly spellcheck="false">
+      </div>
+      <div class="note">
+        این لینک رو هر کسی باز کنه، فایل HTML تو رو می‌بینه. کل محتوا داخل خود لینک فشرده شده.
+      </div>
+      <hr>
+      <div class="prevhead"><h2>پیش‌نمایش</h2></div>
+      <iframe id="preview" title="پیش‌نمایش"></iframe>
+    </div>
+  </div>
+
+  <!-- ================= حالت نمایش ================= -->
+  <div id="modeView" class="hidden">
+    <header>
+      <h1>محتوای اشتراکی</h1>
+      <p id="viewSub">این فایل از طریق لینک اشتراکی باز شده</p>
+    </header>
+    <div class="card">
+      <div class="row" style="margin-top:0">
+        <button id="btnHome">🏠 ساخت لینک جدید</button>
+        <button id="btnOpenRaw">↗️ باز کردن در تب جدید</button>
+      </div>
+      <hr>
+      <iframe id="viewFrame" title="محتوا"></iframe>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast">کپی شد ✅</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  /* ============ Base64 URL helpers ============ */
+  function b64urlEncode(bytes) {
+    let bin = '';
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+    }
+    return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
+  function b64urlDecode(str) {
+    str = str.replace(/-/g, '+').replace(/_/g, '/');
+    while (str.length % 4) str += '=';
+    const bin = atob(str);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes;
+  }
+
+  /* ============ فشرده‌سازی / بازکردن ============ */
+  function encodeHtml(htmlText) {
+    const utf8 = new TextEncoder().encode(htmlText);
+    const deflated = pako.deflate(utf8, { level: 9 });
+    return b64urlEncode(deflated);
+  }
+
+  function decodeHtml(encoded) {
+    const bytes = b64urlDecode(encoded);
+    const inflated = pako.inflate(bytes);
+    return new TextDecoder().decode(inflated);
+  }
+
+  /* ============ کمکی‌ها ============ */
+  const humanSize = b => {
+    if (b < 1024) return b + ' بایت';
+    if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+    return (b / 1048576).toFixed(2) + ' MB';
+  };
+  function say(el, text, type) {
+    el.innerHTML = text ? `<div class="alert a-${type}">${text}</div>` : '';
+  }
+  function toast(t) {
+    const el = $('toast');
+    el.textContent = t;
+    el.classList.add('show');
+    clearTimeout(el._tm);
+    el._tm = setTimeout(() => el.classList.remove('show'), 1800);
+  }
+  async function copyText(text) {
+    try { await navigator.clipboard.writeText(text); }
+    catch {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); ta.remove();
+    }
+  }
+
+  /* ============ تشخیص حالت ============ */
+  const hash = window.location.hash.slice(1);
+
+  if (hash) {
+    // ---- حالت نمایش ----
+    $('modeCreate').classList.add('hidden');
+    $('modeView').classList.remove('hidden');
+
+    try {
+      const html = decodeHtml(hash);
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      $('viewFrame').src = url;
+
+      $('btnOpenRaw').addEventListener('click', () => {
+        window.open(url, '_blank', 'noopener');
+      });
+      $('viewSub').textContent = 'حجم محتوا: ' + humanSize(new Blob([html]).size);
+    } catch (e) {
+      $('viewFrame').outerHTML =
+        '<div class="alert a-err">❌ لینک خرابه یا ناقصه. ممکنه هنگام کپی، بخشی از URL جا افتاده باشه.</div>';
+    }
+
+    $('btnHome').addEventListener('click', () => {
+      window.location.href = window.location.origin + window.location.pathname;
+    });
+
+    return;
+  }
+
+  /* ============ حالت سازنده ============ */
+  const drop = $('drop');
+  const fileInput = $('fileInput');
+  const info = $('info');
+  const iName = $('iName');
+  const iSize = $('iSize');
+  const iLink = $('iLink');
+  const msg = $('msg');
+  const result = $('result');
+  const linkOut = $('linkOut');
+  const preview = $('preview');
+
+  let currentUrl = null;
+
+  async function handleFile(file) {
+    say(msg, '', '');
+    if (!file) return;
+
+    const okExt = /\.html?$/i.test(file.name);
+    const okType = file.type === 'text/html' || file.type === 'application/xhtml+xml';
+    if (!okExt && !okType) {
+      say(msg, '❌ فقط فایل با پسوند <b>.html</b> یا <b>.htm</b> قبوله.', 'err');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      say(msg, '⚠️ فایل بزرگه، فشرده‌سازی ممکنه چند لحظه طول بکشه.', 'warn');
+    }
+
+    let text;
+    try { text = await file.text(); }
+    catch { say(msg, '❌ خواندن فایل ممکن نشد.', 'err'); return; }
+
+    // فشرده‌سازی
+    let encoded;
+    try { encoded = encodeHtml(text); }
+    catch (e) {
+      say(msg, '❌ فشرده‌سازی ناموفق بود: ' + e.message, 'err');
+      return;
+    }
+
+    // ساخت لینک نهایی
+    const baseUrl = window.location.origin + window.location.pathname;
+    const fullUrl = baseUrl + '#' + encoded;
+
+    currentUrl = fullUrl;
+
+    // پیش‌نمایش با blob
+    if (preview._blobUrl) URL.revokeObjectURL(preview._blobUrl);
+    const blob = new Blob([text], { type: 'text/html;charset=utf-8' });
+    const blobUrl = URL.createObjectURL(blob);
+    preview._blobUrl = blobUrl;
+    preview.src = blobUrl;
+
+    // اطلاعات
+    iName.textContent = file.name;
+    iSize.textContent = humanSize(file.size);
+    const linkBytes = new TextEncoder().encode(fullUrl).length;
+    iLink.textContent = humanSize(linkBytes);
+    linkOut.value = fullUrl;
+    info.classList.remove('hidden');
+    result.classList.remove('hidden');
+
+    // هشدار طول
+    if (fullUrl.length > 8000) {
+      say(msg,
+        '⚠️ لینک خیلی طولانیه (' + fullUrl.length.toLocaleString() + ' کاراکتر). ' +
+        'بعضی مرورگرها یا پیام‌رسان‌ها ممکنه نتونن درست بازش کنن. ' +
+        'اگه مشکل خوردی، محتوای فایل رو ساده‌تر کن یا از هاست دیگه استفاده کن.',
+        'warn');
+    } else {
+      say(msg, '✅ فایل آماده است، لینک رو کپی کن و بفرست.', 'ok');
+    }
+  }
+
+  /* ---- رویدادها ---- */
+  drop.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', e => { handleFile(e.target.files[0]); fileInput.value = ''; });
+
+  ['dragenter','dragover'].forEach(ev =>
+    drop.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); drop.classList.add('drag'); })
+  );
+  ['dragleave','drop'].forEach(ev =>
+    drop.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); drop.classList.remove('drag'); })
+  );
+  drop.addEventListener('drop', e => {
+    const f = e.dataTransfer?.files?.[0];
+    if (f) handleFile(f);
+  });
+  window.addEventListener('dragover', e => e.preventDefault());
+  window.addEventListener('drop', e => e.preventDefault());
+
+  $('btnCopy').addEventListener('click', async () => {
+    if (!currentUrl) return;
+    await copyText(currentUrl);
+    toast('لینک کپی شد ✅');
+  });
+
+  $('btnOpen').addEventListener('click', () => {
+    if (currentUrl) window.open(currentUrl, '_blank', 'noopener');
+  });
+
+  $('btnReset').addEventListener('click', () => {
+    currentUrl = null;
+    if (preview._blobUrl) URL.revokeObjectURL(preview._blobUrl);
+    preview.src = 'about:blank';
+    result.classList.add('hidden');
+    info.classList.add('hidden');
+    say(msg, '', '');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+})();
+</script>
+</body>
+</html>
